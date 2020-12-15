@@ -621,15 +621,18 @@ export default function Core(rootElement, userSettings, rootInstanceSymbol = fal
         }
       }
       if (tableMeta.minSpareRows) {
-        let emptyRows = instance.countEmptyRows(true);
+        const emptyRows = instance.countEmptyRows(true);
 
         // should I add empty rows to meet minSpareRows?
         if (emptyRows < tableMeta.minSpareRows) {
-          for (; emptyRows < tableMeta.minSpareRows && instance.countSourceRows() < tableMeta.maxRows; emptyRows++) {
-            // The synchronization with cell meta is not desired here. For `minSpareRows` option,
-            // we don't want to touch/shift cell meta objects.
-            datamap.createRow(instance.countRows(), 1, 'auto');
-          }
+          const emptyRowsMissing = tableMeta.minSpareRows - emptyRows;
+          const rowsToCreate = Math.min(emptyRowsMissing, tableMeta.maxRows - instance.countSourceRows());
+
+          // The synchronization with cell meta is not desired here. For `minSpareRows` option,
+          // we don't want to touch/shift cell meta objects.
+          instance.batch(() => {
+            datamap.createRow(instance.countRows(), rowsToCreate, 'auto');
+          });
         }
       }
       {
@@ -4253,6 +4256,10 @@ export default function Core(rootElement, userSettings, rootInstanceSymbol = fal
    * @param {boolean} [prepareEditorIfNeeded=true] If `true` the editor under the selected cell will be prepared to open.
    */
   this._refreshBorders = function(revertOriginal = false, prepareEditorIfNeeded = true) {
+    if (isUndefined(instance.view)) {
+      return;
+    }
+
     editorManager.destroyEditor(revertOriginal);
     instance.view.render();
 
